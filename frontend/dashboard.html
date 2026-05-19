@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoreo de Paramos - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">
+                <h1>Monitoreo de Paramos</h1>
+                <p>Sistema de vigilancia ambiental</p>
+            </div>
+            <div class="header-controls">
+                <select id="selector-estacion" class="estacion-selector">
+                    <option value="">Cargando estaciones...</option>
+                </select>
+                <div class="estado-sistema">
+                    <span class="estado-indicador verde"></span>
+                    <span id="ultima-actualizacion">Esperando datos...</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard-cards">
+            <div class="card temperatura">
+                <div class="card-icon">🌡️</div>
+                <div class="card-info">
+                    <h3>Temperatura</h3>
+                    <div class="valor" id="temperatura">--</div>
+                    <div class="unidad">°C</div>
+                </div>
+            </div>
+
+            <div class="card humedad-aire">
+                <div class="card-icon">💧</div>
+                <div class="card-info">
+                    <h3>Humedad Aire</h3>
+                    <div class="valor" id="humedad-aire">--</div>
+                    <div class="unidad">%</div>
+                </div>
+            </div>
+
+            <div class="card humedad-suelo">
+                <div class="card-icon">🌱</div>
+                <div class="card-info">
+                    <h3>Humedad Suelo</h3>
+                    <div class="valor" id="humedad-suelo">--</div>
+                    <div class="unidad">%</div>
+                </div>
+                <div class="alerta-suelo" id="alerta-suelo"></div>
+            </div>
+
+            <div class="card lecturas">
+                <div class="card-icon">📊</div>
+                <div class="card-info">
+                    <h3>Lecturas Hoy</h3>
+                    <div class="valor" id="total-lecturas">--</div>
+                    <div class="unidad">registros</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-estacion" id="info-estacion"></div>
+
+        <div class="charts-container">
+            <div class="chart-box">
+                <h3>Temperatura y Humedad Ambiental</h3>
+                <canvas id="graficaTempHumedad"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Humedad del Suelo</h3>
+                <canvas id="graficaSuelo"></canvas>
+                <div class="referencias-suelo">
+                    <span class="ref-seco">Seco < 30%</span>
+                    <span class="ref-optimo">Optimo 30-85%</span>
+                    <span class="ref-saturado">Saturado > 85%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="alertas-container">
+            <h2>Alertas del Sistema</h2>
+            <div id="lista-alertas" class="lista-alertas">
+                <div class="sin-alertas">Seleccione una estacion para ver alertas</div>
+            </div>
+        </div>
+
+        <div class="estadisticas-container">
+            <h2>Estadisticas del Dia</h2>
+            <div id="estadisticas" class="estadisticas-grid">
+                <div class="sin-datos">Seleccione una estacion para ver estadisticas</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
