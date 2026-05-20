@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — MonitoreoParamos{% endblock %}
+{% block page_title %}Dashboard General{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── KPI CARDS ────────────────────────────────────────────────────────────── -->
+<div class="kpi-grid">
+  <div class="kpi-card kpi-green">
+    <div class="kpi-icon"><i class="fa-solid fa-tower-broadcast"></i></div>
+    <div class="kpi-body">
+      <span class="kpi-num" id="kpiActivas">{{ resumen.estaciones_activas }}</span>
+      <span class="kpi-label">Estaciones Activas</span>
+    </div>
+  </div>
+  <div class="kpi-card kpi-blue">
+    <div class="kpi-icon"><i class="fa-solid fa-wifi"></i></div>
+    <div class="kpi-body">
+      <span class="kpi-num" id="kpiEnLinea">{{ resumen.estaciones_en_linea }}</span>
+      <span class="kpi-label">En Línea (últimos 5 min)</span>
+    </div>
+  </div>
+  <div class="kpi-card kpi-teal">
+    <div class="kpi-icon"><i class="fa-solid fa-database"></i></div>
+    <div class="kpi-body">
+      <span class="kpi-num" id="kpiLecturas">{{ "{:,}".format(resumen.lecturas_hoy) }}</span>
+      <span class="kpi-label">Lecturas de Hoy</span>
+    </div>
+  </div>
+  <div class="kpi-card {% if resumen.criticas_hoy > 0 %}kpi-red{% else %}kpi-amber{% endif %}">
+    <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="kpi-body">
+      <span class="kpi-num" id="kpiAlertas">{{ resumen.alertas_hoy }}</span>
+      <span class="kpi-label">Alertas Hoy
+        {% if resumen.criticas_hoy > 0 %}
+          <em class="badge-critica">{{ resumen.criticas_hoy }} críticas</em>
+        {% endif %}
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ── SELECTOR DE ESTACION ─────────────────────────────────────────────────── -->
+<div class="section-header">
+  <h2 class="section-title"><i class="fa-solid fa-sliders"></i> Monitoreo en tiempo real</h2>
+  <div class="station-selector">
+    <label for="selEstacion">Estación:</label>
+    <select id="selEstacion" onchange="cambiarEstacion(this.value)">
+      <option value="">— Selecciona —</option>
+      {% for e in estaciones %}
+        <option value="{{ e.codigo }}" data-nombre="{{ e.nombre }}">
+          {{ e.nombre }} ({{ e.codigo }})
+          {% if e.en_linea %}🟢{% else %}⚪{% endif %}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<!-- ── LECTURAS ACTUALES ──────────────────────────────────────────────────────── -->
+<div class="readings-grid" id="readingsGrid">
+  <div class="reading-card" id="cardTemp">
+    <div class="reading-icon temp-icon"><i class="fa-solid fa-temperature-half"></i></div>
+    <div class="reading-body">
+      <span class="reading-val" id="valTemp">--</span>
+      <span class="reading-unit">°C</span>
+    </div>
+    <span class="reading-label">Temperatura</span>
+    <div class="reading-bar"><div class="reading-fill temp-fill" id="fillTemp"></div></div>
+  </div>
+  <div class="reading-card" id="cardHumAire">
+    <div class="reading-icon hum-icon"><i class="fa-solid fa-droplet"></i></div>
+    <div class="reading-body">
+      <span class="reading-val" id="valHumAire">--</span>
+      <span class="reading-unit">%</span>
+    </div>
+    <span class="reading-label">Humedad del Aire</span>
+    <div class="reading-bar"><div class="reading-fill hum-fill" id="fillHumAire"></div></div>
+  </div>
+  <div class="reading-card" id="cardHumSuelo">
+    <div class="reading-icon suelo-icon"><i class="fa-solid fa-seedling"></i></div>
+    <div class="reading-body">
+      <span class="reading-val" id="valHumSuelo">--</span>
+      <span class="reading-unit">%</span>
+    </div>
+    <span class="reading-label">Humedad del Suelo</span>
+    <div class="reading-bar"><div class="reading-fill suelo-fill" id="fillHumSuelo"></div></div>
+  </div>
+</div>
+<p class="last-update">Última actualización: <span id="lastUpdate">—</span></p>
+
+<!-- ── GRÁFICAS ──────────────────────────────────────────────────────────────── -->
+<div class="charts-grid">
+  <div class="chart-card chart-wide">
+    <div class="chart-header">
+      <h3>Temperatura <span class="chart-sub">últimas 100 lecturas</span></h3>
+      <span class="chart-badge temp-badge">°C</span>
+    </div>
+    <canvas id="chartTemp" height="100"></canvas>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <h3>Humedad Aire <span class="chart-sub">%</span></h3>
+      <span class="chart-badge hum-badge">%</span>
+    </div>
+    <canvas id="chartHumAire" height="130"></canvas>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <h3>Humedad Suelo <span class="chart-sub">%</span></h3>
+      <span class="chart-badge suelo-badge">%</span>
+    </div>
+    <canvas id="chartHumSuelo" height="130"></canvas>
+  </div>
+</div>
+
+<!-- ── ESTADISTICAS DEL DIA + ALERTAS ────────────────────────────────────────── -->
+<div class="bottom-grid">
+  <!-- Estadísticas -->
+  <div class="stats-card" id="statsCard">
+    <h3 class="card-title"><i class="fa-solid fa-chart-bar"></i> Estadísticas del Día</h3>
+    <div id="statsContent" class="stats-placeholder">
+      <i class="fa-solid fa-chart-bar"></i>
+      <p>Selecciona una estación</p>
+    </div>
+  </div>
+
+  <!-- Alertas recientes -->
+  <div class="alerts-card">
+    <h3 class="card-title"><i class="fa-solid fa-bell"></i> Alertas Recientes</h3>
+    <div class="alerts-list" id="alertsList">
+      {% for a in alertas %}
+        <div class="alert-item alert-{{ a.nivel|lower }}">
+          <div class="alert-dot"></div>
+          <div class="alert-body">
+            <span class="alert-tipo">{{ a.tipo }}</span>
+            <span class="alert-est">{{ a.estacion_nombre }}</span>
+            <span class="alert-desc">{{ a.descripcion }}</span>
+          </div>
+          <span class="alert-time">{{ a.fecha[11:16] }}</span>
+        </div>
+      {% else %}
+        <div class="no-alerts"><i class="fa-solid fa-circle-check"></i> Sin alertas recientes</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ESTACIONES = {{ estaciones | tojson }};
+let codigoActual = null;
+let charts = {};
+let intervalLectura = null;
+let intervalHistorico = null;
+
+// Seleccionar primera estación automáticamente
+window.addEventListener('DOMContentLoaded', () => {
+  if (ESTACIONES.length > 0) {
+    const sel = document.getElementById('selEstacion');
+    sel.value = ESTACIONES[0].codigo;
+    cambiarEstacion(ESTACIONES[0].codigo);
+  }
+});
+
+function cambiarEstacion(codigo) {
+  if (!codigo) return;
+  codigoActual = codigo;
+  clearInterval(intervalLectura);
+  clearInterval(intervalHistorico);
+  cargarUltimaLectura();
+  cargarHistorico();
+  cargarEstadisticas();
+  intervalLectura   = setInterval(cargarUltimaLectura, 3000);
+  intervalHistorico = setInterval(() => { cargarHistorico(); cargarAlertas(); }, 15000);
+}
+
+// ── Última lectura ──────────────────────────────────────────────────────────
+async function cargarUltimaLectura() {
+  if (!codigoActual) return;
+  const res  = await fetch(`/api/ultima-lectura?estacion=${codigoActual}`);
+  if (!res.ok) return;
+  const data = await res.json();
+
+  setVal('valTemp',    data.temperatura,   1);
+  setVal('valHumAire', data.humedad_aire,  1);
+  setVal('valHumSuelo',data.humedad_suelo, 0);
+
+  // Barras de progreso
+  setBar('fillTemp',    normalizeTemp(data.temperatura));
+  setBar('fillHumAire', data.humedad_aire);
+  setBar('fillHumSuelo',data.humedad_suelo);
+
+  // Colorear cards según umbrales
+  colorizeCard('cardHumSuelo', data.humedad_suelo, 30, 85);
+
+  document.getElementById('lastUpdate').textContent =
+    new Date(data.fecha).toLocaleTimeString('es-CO');
+}
+
+function setVal(id, val, dec) {
+  document.getElementById(id).textContent = val !== null ? Number(val).toFixed(dec) : '--';
+}
+function setBar(id, pct) {
+  document.getElementById(id).style.width = Math.min(Math.max(pct||0, 0), 100) + '%';
+}
+function normalizeTemp(t) { return t !== null ? ((t + 20) / 70 * 100) : 0; }
+function colorizeCard(id, val, low, high) {
+  const el = document.getElementById(id);
+  el.classList.remove('card-warning','card-critical');
+  if (val < low) el.classList.add('card-critical');
+  else if (val > high) el.classList.add('card-warning');
+}
+
+// ── Histórico + charts ──────────────────────────────────────────────────────
+async function cargarHistorico() {
+  if (!codigoActual) return;
+  const res  = await fetch(`/api/historico/${codigoActual}?limite=100`);
+  const data = await res.json();
+  if (!data.length) return;
+
+  const labels = data.map(d => d.fecha.substring(11,19));
+  const temps  = data.map(d => d.temperatura);
+  const hairs  = data.map(d => d.humedad_aire);
+  const hsuels = data.map(d => d.humedad_suelo);
+
+  updateChart('chartTemp',     labels, temps,  '#4ade80', 'Temperatura (°C)');
+  updateChart('chartHumAire',  labels, hairs,  '#38bdf8', 'Humedad Aire (%)');
+  updateChart('chartHumSuelo', labels, hsuels, '#a78bfa', 'Humedad Suelo (%)');
+}
+
+function updateChart(id, labels, data, color, label) {
+  const ctx = document.getElementById(id).getContext('2d');
+  if (charts[id]) { charts[id].destroy(); }
+  charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label, data,
+        borderColor: color,
+        backgroundColor: color + '18',
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.4,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', maxTicksLimit: 8, font:{size:10} },
+             grid:  { color: '#1e293b' } },
+        y: { ticks: { color: '#94a3b8', font:{size:10} },
+             grid:  { color: '#1e293b' } },
+      }
+    }
+  });
+}
+
+// ── Estadísticas ────────────────────────────────────────────────────────────
+async function cargarEstadisticas() {
+  if (!codigoActual) return;
+  const res = await fetch(`/api/estadisticas/${codigoActual}`);
+  if (!res.ok) { document.getElementById('statsContent').innerHTML = '<p>Sin datos hoy.</p>'; return; }
+  const s = await res.json();
+  document.getElementById('statsContent').innerHTML = `
+    <div class="stat-row"><span>Temperatura promedio</span><strong>${s.temperatura_promedio}°C</strong></div>
+    <div class="stat-row"><span>Temp. mín / máx</span><strong>${s.temperatura_minima}° / ${s.temperatura_maxima}°C</strong></div>
+    <div class="stat-row"><span>Humedad aire prom.</span><strong>${s.humedad_promedio}%</strong></div>
+    <div class="stat-row"><span>Humedad suelo prom.</span><strong>${s.suelo_promedio}%</strong></div>
+    <div class="stat-row"><span>Suelo mín / máx</span><strong>${s.suelo_minimo}% / ${s.suelo_maximo}%</strong></div>
+    <div class="stat-row highlight"><span>Total lecturas hoy</span><strong>${s.total_lecturas.toLocaleString()}</strong></div>
+  `;
+}
+
+// ── Alertas en vivo ─────────────────────────────────────────────────────────
+async function cargarAlertas() {
+  const url = codigoActual ? `/api/alertas?estacion=${codigoActual}` : '/api/alertas';
+  const res  = await fetch(url);
+  const data = await res.json();
+  const list = document.getElementById('alertsList');
+  if (!data.length) {
+    list.innerHTML = '<div class="no-alerts"><i class="fa-solid fa-circle-check"></i> Sin alertas recientes</div>';
+    return;
+  }
+  list.innerHTML = data.slice(0,10).map(a => `
+    <div class="alert-item alert-${a.nivel.toLowerCase()}">
+      <div class="alert-dot"></div>
+      <div class="alert-body">
+        <span class="alert-tipo">${a.tipo}</span>
+        <span class="alert-est">${a.estacion_nombre}</span>
+        <span class="alert-desc">${a.descripcion}</span>
+      </div>
+      <span class="alert-time">${a.fecha.substring(11,16)}</span>
+    </div>
+  `).join('');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Usuarios — MonitoreoParamos{% endblock %}
+{% block page_title %}Gestión de Usuarios{% endblock %}
+
+{% block content %}
+
+<div class="page-toolbar">
+  <div class="toolbar-left">
+    <span class="toolbar-count">{{ usuarios|length }} usuarios registrados</span>
+  </div>
+  <button class="btn-primary" onclick="openModal('modalNuevoUser')">
+    <i class="fa-solid fa-user-plus"></i> Nuevo Usuario
+  </button>
+</div>
+
+<!-- ── TABLA DE USUARIOS ──────────────────────────────────────────────────── -->
+<div class="table-card">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Usuario</th>
+        <th>Correo</th>
+        <th>Rol</th>
+        <th>Estado</th>
+        <th>Registro</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in usuarios %}
+      <tr>
+        <td>
+          <div class="user-row">
+            <div class="user-avatar-sm">{{ u.nombre[0]|upper }}</div>
+            <span>{{ u.nombre }}</span>
+          </div>
+        </td>
+        <td><span class="mono-text">{{ u.correo }}</span></td>
+        <td><span class="role-badge role-{{ u.rol|lower }}">{{ u.rol }}</span></td>
+        <td>
+          <span class="estado-pill {% if u.estado == 'Activo' %}pill-green{% else %}pill-red{% endif %}">
+            {{ u.estado }}
+          </span>
+        </td>
+        <td>{{ u.fecha }}</td>
+        <td class="actions-cell">
+          {% if u.estado == 'Activo' %}
+          <form method="POST" action="{{ url_for('cambiar_estado_route', id_usuario=u.id) }}" style="display:inline">
+            <input type="hidden" name="estado" value="Inactivo"/>
+            <button type="submit" class="btn-sm btn-danger" title="Desactivar">
+              <i class="fa-solid fa-ban"></i>
+            </button>
+          </form>
+          {% else %}
+          <form method="POST" action="{{ url_for('cambiar_estado_route', id_usuario=u.id) }}" style="display:inline">
+            <input type="hidden" name="estado" value="Activo"/>
+            <button type="submit" class="btn-sm btn-outline" title="Activar">
+              <i class="fa-solid fa-circle-check"></i>
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center;padding:2rem;color:#64748b">No hay usuarios registrados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MODAL: NUEVO USUARIO
+═══════════════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalNuevoUser" onclick="closeOnOverlay(event,'modalNuevoUser')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-user-plus"></i> Nuevo Usuario</h3>
+      <button onclick="closeModal('modalNuevoUser')">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('crear_usuario_route') }}">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre completo</label>
+            <input type="text" name="nombre" required placeholder="Juan García"/>
+          </div>
+          <div class="form-group">
+            <label>Rol</label>
+            <select name="id_rol" required>
+              {% for r in roles %}
+              <option value="{{ r.id }}">{{ r.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Correo electrónico</label>
+          <input type="email" name="correo" required placeholder="usuario@correo.com"/>
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" name="password" required placeholder="Mínimo 8 caracteres" minlength="8"/>
+        </div>
+        <div class="form-note">
+          <i class="fa-solid fa-shield-halved"></i>
+          La contraseña se almacena con hash SHA-256. No hay recuperación automática.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline" onclick="closeModal('modalNuevoUser')">Cancelar</button>
+        <button type="submit" class="btn-primary"><i class="fa-solid fa-user-plus"></i> Crear Usuario</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

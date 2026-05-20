@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}MonitoreoParamos{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+{% if session.usuario_id %}
+<!-- ── SIDEBAR ─────────────────────────────────────────────────────────────── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon"><i class="fa-solid fa-mountain-sun"></i></div>
+    <div class="brand-text">
+      <span class="brand-name">Páramos</span>
+      <span class="brand-sub">Sistema de Monitoreo</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.endpoint=='dashboard' %}active{% endif %}">
+      <i class="fa-solid fa-gauge-high"></i><span>Dashboard</span>
+    </a>
+    <a href="{{ url_for('estaciones') }}" class="nav-item {% if request.endpoint in ['estaciones','nueva_estacion'] %}active{% endif %}">
+      <i class="fa-solid fa-tower-broadcast"></i><span>Estaciones</span>
+    </a>
+    {% if session.rol == 'Administrador' %}
+    <a href="{{ url_for('usuarios') }}" class="nav-item {% if request.endpoint=='usuarios' %}active{% endif %}">
+      <i class="fa-solid fa-users-gear"></i><span>Usuarios</span>
+    </a>
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-chip">
+      <div class="user-avatar">{{ session.nombre[0]|upper }}</div>
+      <div class="user-info">
+        <span class="user-name">{{ session.nombre }}</span>
+        <span class="user-role role-{{ session.rol|lower }}">{{ session.rol }}</span>
+      </div>
+    </div>
+    <a href="{{ url_for('logout') }}" class="logout-btn" title="Cerrar sesión">
+      <i class="fa-solid fa-right-from-bracket"></i>
+    </a>
+  </div>
+</aside>
+
+<!-- ── MAIN ────────────────────────────────────────────────────────────────── -->
+<div class="main-wrap">
+  <header class="topbar">
+    <button class="sidebar-toggle" onclick="toggleSidebar()">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+    <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+    <div class="topbar-right">
+      <div class="live-badge" id="liveBadge">
+        <span class="pulse-dot"></span> EN VIVO
+      </div>
+      <span class="topbar-time" id="topbarTime"></span>
+    </div>
+  </header>
+
+  <!-- Alertas flash -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container">
+        {% for cat, msg in messages %}
+          <div class="flash flash-{{ cat }}">
+            <i class="fa-solid {% if cat=='success' %}fa-circle-check{% elif cat=='danger' %}fa-circle-xmark{% elif cat=='warning' %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+            {{ msg }}
+            <button onclick="this.parentElement.remove()">×</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% else %}
+  {% block auth_content %}{% endblock %}
+{% endif %}
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
