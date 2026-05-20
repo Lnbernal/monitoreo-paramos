@@ -1,6 +1,21 @@
 import pyodbc
 from datetime import datetime
 
+'''DB_CONFIG = {
+    'server': 'DESKTOP-CFO78OP',
+    'database': 'MonitoreoParamos',
+    'trusted_connection': 'yes'
+}
+
+def get_connection_string():
+    return f"""
+        DRIVER={{ODBC Driver 17 for SQL Server}};
+        SERVER={DB_CONFIG['server']};
+        DATABASE={DB_CONFIG['database']};
+        Trusted_Connection=yes;
+    """
+    '''
+
 DB_CONFIG = {
     'server': 'MonitoreoParamos.mssql.somee.com',      # El servidor que te da Somee
     'database': 'MonitoreoParamos',   # El nombre de tu BD en Somee
