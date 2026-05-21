@@ -179,6 +179,21 @@ def cambiar_estado_route(id_usuario):
           'success' if ok else 'danger')
     return redirect(url_for('usuarios'))
 
+@app.route('/test-db')
+def test_db():
+    try:
+        from db_config import get_db_connection
+        conn = get_db_connection()
+        if conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM Usuarios")
+            count = cursor.fetchone()[0]
+            conn.close()
+            return f"✓ Conexión OK — {count} usuarios en BD"
+        else:
+            return "✗ get_db_connection() retornó None", 500
+    except Exception as e:
+        return f"✗ Error: {str(e)}", 500
 # ══════════════════════════════════════════════════════════════════════════════
 #  API JSON
 # ══════════════════════════════════════════════════════════════════════════════
