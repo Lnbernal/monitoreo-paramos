@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_cors import CORS
 from datetime import timedelta
 import os
+import threading
 
 from db_config import (
     obtener_estaciones,
@@ -26,6 +27,23 @@ app.permanent_session_lifetime = timedelta(hours=8)
 CORS(app)
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  MQTT en hilo de fondo
+# ══════════════════════════════════════════════════════════════════════════════
+def iniciar_mqtt():
+    """Arranca el listener MQTT en un thread daemon (muere con el proceso)."""
+    try:
+        from mqtt_listener import start_listener
+        print("[MQTT] Iniciando listener en hilo de fondo...")
+        start_listener()
+    except Exception as e:
+        print(f"[MQTT] Error al iniciar listener: {e}")
+
+def arrancar_mqtt_thread():
+    t = threading.Thread(target=iniciar_mqtt, daemon=True, name="mqtt-listener")
+    t.start()
+    print("[MQTT] Thread iniciado")
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  AUTH
 # ══════════════════════════════════════════════════════════════════════════════
 @app.route('/')
@@ -42,8 +60,7 @@ def login():
     if request.method == 'POST':
         correo   = request.form.get('correo', '').strip()
         password = request.form.get('password', '')
-
-        usuario = verificar_usuario(correo, password)
+        usuario  = verificar_usuario(correo, password)
         if usuario:
             session.permanent = True
             session['usuario_id'] = usuario['id']
@@ -53,8 +70,7 @@ def login():
             registrar_evento(usuario['id'], f"Inicio de sesión desde {request.remote_addr}")
             flash(f"Bienvenido, {usuario['nombre']}", 'success')
             return redirect(url_for('dashboard'))
-        else:
-            flash('Correo o contraseña incorrectos.', 'danger')
+        flash('Correo o contraseña incorrectos.', 'danger')
 
     return render_template('login.html')
 
@@ -94,12 +110,12 @@ def estaciones():
 def nueva_estacion():
     if request.method == 'POST':
         datos = {
-            'nombre':   request.form.get('nombre'),
-            'codigo':   request.form.get('codigo'),
+            'nombre':    request.form.get('nombre'),
+            'codigo':    request.form.get('codigo'),
             'ubicacion': request.form.get('ubicacion'),
-            'latitud':  request.form.get('latitud') or None,
-            'longitud': request.form.get('longitud') or None,
-            'altitud':  request.form.get('altitud') or None,
+            'latitud':   request.form.get('latitud') or None,
+            'longitud':  request.form.get('longitud') or None,
+            'altitud':   request.form.get('altitud') or None,
         }
         ok, msg = crear_estacion(session['usuario_id'], datos)
         if ok:
@@ -113,12 +129,12 @@ def nueva_estacion():
 @rol_requerido('Administrador', 'Operador')
 def editar_estacion(id_estacion):
     datos = {
-        'nombre':   request.form.get('nombre'),
+        'nombre':    request.form.get('nombre'),
         'ubicacion': request.form.get('ubicacion'),
-        'latitud':  request.form.get('latitud') or None,
-        'longitud': request.form.get('longitud') or None,
-        'altitud':  request.form.get('altitud') or None,
-        'estado':   request.form.get('estado'),
+        'latitud':   request.form.get('latitud') or None,
+        'longitud':  request.form.get('longitud') or None,
+        'altitud':   request.form.get('altitud') or None,
+        'estado':    request.form.get('estado'),
     }
     ok, msg = actualizar_estacion(id_estacion, datos)
     flash(msg, 'success' if ok else 'danger')
@@ -159,11 +175,12 @@ def cambiar_estado_route(id_usuario):
     estado = request.form.get('estado')
     ok = cambiar_estado_usuario(id_usuario, estado)
     registrar_evento(session['usuario_id'], f"Cambió estado de usuario {id_usuario} a {estado}")
-    flash('Estado actualizado.' if ok else 'Error al actualizar.', 'success' if ok else 'danger')
+    flash('Estado actualizado.' if ok else 'Error al actualizar.',
+          'success' if ok else 'danger')
     return redirect(url_for('usuarios'))
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  API JSON (para el JS del dashboard)
+#  API JSON
 # ══════════════════════════════════════════════════════════════════════════════
 @app.route('/api/estaciones')
 @login_requerido
@@ -175,7 +192,7 @@ def api_estaciones():
 def api_ultima_lectura():
     codigo = request.args.get('estacion')
     lectura = obtener_ultima_lectura(codigo)
-    return jsonify(lectura) if lectura else jsonify({'error': 'Sin datos'}), 404
+    return jsonify(lectura) if lectura else (jsonify({'error': 'Sin datos'}), 404)
 
 @app.route('/api/historico/<codigo_estacion>')
 @login_requerido
@@ -193,7 +210,7 @@ def api_alertas():
 @login_requerido
 def api_estadisticas(codigo_estacion):
     stats = obtener_estadisticas(codigo_estacion)
-    return jsonify(stats) if stats else jsonify({'error': 'Sin datos'}), 404
+    return jsonify(stats) if stats else (jsonify({'error': 'Sin datos'}), 404)
 
 @app.route('/api/resumen')
 @login_requerido
@@ -201,11 +218,17 @@ def api_resumen():
     return jsonify(obtener_resumen_global())
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  ARRANQUE
+# ══════════════════════════════════════════════════════════════════════════════
+# Iniciamos MQTT una sola vez (evita doble arranque del reloader de Flask)
+if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+    arrancar_mqtt_thread()
+
 if __name__ == '__main__':
     print("=" * 55)
     print("  SISTEMA DE MONITOREO DE PÁRAMOS")
     print("=" * 55)
     print("  Dashboard: http://localhost:5000")
-    print("  Login:     http://localhost:5000/login")
     print("=" * 55)
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)

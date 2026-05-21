@@ -1,6 +1,6 @@
 import pyodbc
 from datetime import datetime
-
+'''
 DB_CONFIG = {
     'server': 'DESKTOP-CFO78OP',
     'database': 'MonitoreoParamos',
@@ -15,19 +15,21 @@ def get_connection_string():
         f"Trusted_Connection=yes;"
     )
 
-    # ── Somee (producción) ─────────────────────────────────────────────────────
-    # DB_CONFIG = {
-    #     'server':   'MonitoreoParamos.mssql.somee.com',
-    #     'database': 'MonitoreoParamos',
-    #     'username': 'JuanDa697_SQLLogin_1',
-    #     'password': 's2pqdtcny5'
-    # }
-    # return (
-    #     f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-    #     f"SERVER={DB_CONFIG['server']};"
-    #     f"DATABASE={DB_CONFIG['database']};"
-    #     f"UID={DB_CONFIG['username']};PWD={DB_CONFIG['password']};"
-    # )
+'''
+DB_CONFIG = {
+    'server':   'MonitoreoParamos.mssql.somee.com',
+    'database': 'MonitoreoParamos',
+    'username': 'JuanDa697_SQLLogin_1',
+    'password': 's2pqdtcny5'
+}
+
+def get_connection_string():
+    return (
+    f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+    f"SERVER={DB_CONFIG['server']};"
+    f"DATABASE={DB_CONFIG['database']};"
+    f"UID={DB_CONFIG['username']};PWD={DB_CONFIG['password']};"
+     )
 
 def get_db_connection():
     try:
