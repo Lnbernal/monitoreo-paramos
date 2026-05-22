@@ -27,7 +27,7 @@ def on_message(client, userdata, msg):
         temperatura     = payload.get('temperatura')
         humedad_aire    = payload.get('humedad_aire')
         humedad_suelo   = payload.get('humedad_suelo')
-        codigo_estacion = payload.get('estacion', 'BELM_001')
+        codigo_estacion = payload.get('estacion', 'RABA_001')
 
         print(f"[MQTT] [{datetime.now().strftime('%H:%M:%S')}] "
               f"{codigo_estacion} | T:{temperatura}°C "
